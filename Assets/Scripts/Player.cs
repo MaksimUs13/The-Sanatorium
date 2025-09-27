@@ -3,45 +3,44 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
-    [SerializeField] InputManager inputManager;
-    [SerializeField] Slider sprintSlider;
+    [SerializeField] private InputManager inputManager;
+    [SerializeField] private Slider sprintSlider;
+
     private CharacterController characterController;
     private float playerSpeed = 4.0f;
     private float playerSprintSpeed = 7.0f;
     private const float accelerationOfGravity = 9.81f;
+    private const float groundedVerticalVelocity = -0.5f;
     private float verticalVelocity = 0f;
     private bool isSprinting = false;
-    private float sprintScaleAmount = 1;
+
+    // Константы для оптимизации
+    private const float baseSpeed = 4.0f;
+    private const float sprintDrainRate = 0.6f;
+    private const float sprintRecoveryRate = 0.1f;
 
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
     }
+
     private void OnEnable()
     {
-        inputManager.OnSprint += (sender, args) => { Sprint(); };
-        inputManager.OnStopSprint += (sender, args) => { StopSprint(); };
+        // Упрощенная подписка на события
+        inputManager.OnSprint += OnSprintEvent;
+        inputManager.OnStopSprint += OnStopSprintEvent;
     }
+
     private void OnDisable()
     {
-        inputManager.OnSprint -= (sender, args) => { Sprint(); };
-        inputManager.OnStopSprint -= (sender, args) => { StopSprint(); };
+        inputManager.OnSprint -= OnSprintEvent;
+        inputManager.OnStopSprint -= OnStopSprintEvent;
     }
+
     private void Update()
     {
         Movement();
-        if(isSprinting)
-        {
-            sprintScaleAmount = 0.6f * Time.deltaTime;
-            sprintSlider.value -= sprintScaleAmount;
-            if(sprintSlider.value <= 0f)
-                StopSprint();
-        }
-        if(!isSprinting)
-        {
-            sprintScaleAmount = 0.1f * Time.deltaTime;
-            sprintSlider.value += sprintScaleAmount;
-        }
+        UpdateSprint();
     }
 
     private void Movement()
@@ -49,29 +48,49 @@ public class Player : MonoBehaviour
         bool isGrounded = characterController.isGrounded;
         Vector2 inputVector = inputManager.GetMovementVectorNormalized();
         Vector3 moveDir = transform.forward * inputVector.y + transform.right * inputVector.x;
-        if (isGrounded)
-        {
-            verticalVelocity = -0.5f;
-        }
-        else
-        {
-            verticalVelocity -= accelerationOfGravity * Time.deltaTime;
-        }
+
+        verticalVelocity = isGrounded ? groundedVerticalVelocity :
+            verticalVelocity - accelerationOfGravity * Time.deltaTime;
+
         moveDir.y = verticalVelocity;
-        characterController.Move(moveDir * playerSpeed * Time.deltaTime);
+        characterController.Move(moveDir * (playerSpeed * Time.deltaTime));
     }
+
+    private void UpdateSprint()
+    {
+        float sprintDelta = (isSprinting ? -sprintDrainRate : sprintRecoveryRate) * Time.deltaTime;
+        sprintSlider.value += sprintDelta;
+
+        // Автоматическое отключение спринта при истощении
+        if (isSprinting && sprintSlider.value <= 0f)
+        {
+            StopSprint();
+        }
+    }
+
+    private void OnSprintEvent(object sender, System.EventArgs args)
+    {
+        Sprint();
+    }
+
+    private void OnStopSprintEvent(object sender, System.EventArgs args)
+    {
+        StopSprint();
+    }
+
     private void Sprint()
     {
-        isSprinting = true;
-        if (isSprinting)
+        // Проверяем, есть ли еще выносливость для спринта
+        if (sprintSlider.value > 0f)
         {
+            isSprinting = true;
             playerSpeed = playerSprintSpeed;
-        }      
+        }
     }
+
     private void StopSprint()
     {
         isSprinting = false;
-        if (!isSprinting)
-            playerSpeed = 4.0f;
+        playerSpeed = baseSpeed;
     }
 }
