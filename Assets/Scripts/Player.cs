@@ -5,6 +5,7 @@ public class Player : MonoBehaviour
 {
     [SerializeField] private InputManager inputManager;
     [SerializeField] private Slider sprintSlider;
+    [SerializeField] private CameraController cameraController;
 
     private CharacterController characterController;
     private float playerSpeed = 4.0f;
@@ -84,6 +85,7 @@ public class Player : MonoBehaviour
         if (sprintSlider.value > 0f)
         {
             isSprinting = true;
+            cameraController.StartShake();
             playerSpeed = playerSprintSpeed;
         }
     }
@@ -91,6 +93,7 @@ public class Player : MonoBehaviour
     private void StopSprint()
     {
         isSprinting = false;
+        cameraController.StopShake();
         playerSpeed = baseSpeed;
     }
 }
